@@ -118,6 +118,7 @@ public struct PopoverTemplates {
             case mostCounterClockwise
             case centered
             case mostClockwise
+            case alignedToContainer
         }
     }
     
@@ -169,6 +170,7 @@ public struct PopoverTemplates {
                     .padding(padding)
                     .background(
                         BackgroundWithArrow(
+                            context: context,
                             arrowSide: arrowSide ?? context.attributes.position.getArrowPosition(),
                             cornerRadius: cornerRadius
                         )
@@ -190,6 +192,9 @@ public struct PopoverTemplates {
      A shape that has an arrow protruding.
      */
     public struct BackgroundWithArrow: Shape {
+        
+        /// The context associated with the `Popover` being presented.
+        var context: Popover.Context
         
         /// The side of the rectangle to have the arrow
         public var arrowSide: ArrowSide
@@ -219,6 +224,12 @@ public struct PopoverTemplates {
              rectangle  |
          */
         public static var arrowSidePadding = CGFloat(28)
+        
+        init(context: Popover.Context, arrowSide: ArrowSide, cornerRadius: CGFloat) {
+            self.context = context
+            self.arrowSide = arrowSide
+            self.cornerRadius = cornerRadius
+        }
         
         /// Path for the triangular arrow.
         public func arrowPath() -> Path {
@@ -299,6 +310,25 @@ public struct PopoverTemplates {
                 arrowPath = arrowPath.applying(
                     .init(translationX: popoverRadius, y: 0)
                 )
+            case .alignedToContainer:
+                let sourceFrame = context.attributes.sourceFrame()
+                let originalTranslationOffset = -(popoverRadius + BackgroundWithArrow.arrowSidePadding)
+                
+                switch arrowSide {
+                case .top(_), .bottom(_):
+                    let midPoint = sourceFrame.midX
+                    let horizontalOffset = originalTranslationOffset - BackgroundWithArrow.width / 4
+                    arrowPath = arrowPath.applying(
+                        .init(translationX: horizontalOffset + midPoint, y: 0)
+                    )
+                    
+                case .right(_), .left(_):
+                    let midPoint = sourceFrame.midY
+                    let verticalOffset = originalTranslationOffset - BackgroundWithArrow.height / 2
+                    arrowPath = arrowPath.applying(
+                        .init(translationX: 0, y: verticalOffset + midPoint)
+                    )
+                }
             }
 
             path.addPath(arrowPath, transform: arrowTransform)
