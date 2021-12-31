@@ -90,14 +90,18 @@ public struct PopoverTemplates {
     /// The side of the popover that the arrow should be placed on.
     /**
      
-                          top
-            X──────────────X──────────────X
-            |                             |
-            |                             |
-      left  X                             X  right
-            |                             |
-            |                             |
-            X──────────────X──────────────X
+                        X───────────X───────────X
+                        |      source view      |
+                        X───────────X───────────X
+     
+                          top    topAlignedToSourceFrameCenter
+            X──────────────X────────X───────────X
+            |                                   |
+            |                                   |
+      left  X                                   X  right
+            |                                   |
+            |                                   |
+            X──────────────X────────────────────X
                          bottom
      */
     public enum ArrowSide {
@@ -105,6 +109,7 @@ public struct PopoverTemplates {
         case right(ArrowAlignment)
         case bottom(ArrowAlignment)
         case left(ArrowAlignment)
+        case topAlignedToSourceFrameCenter
         
         /// Place the arrow on the left, middle, or right on a side.
         /**
@@ -118,7 +123,6 @@ public struct PopoverTemplates {
             case mostCounterClockwise
             case centered
             case mostClockwise
-            case alignedToContainer
         }
     }
     
@@ -271,12 +275,12 @@ public struct PopoverTemplates {
             path.addRoundedRect(in: rect, cornerSize: CGSize(width: cornerRadius, height: cornerRadius))
             
             /// Rotation transform to make the arrow hit a different side.
-            let arrowTransform: CGAffineTransform
+            var arrowTransform: CGAffineTransform = .identity
             
             /// Half of the rectangle's smallest side length, used for the arrow's alignment.
-            let popoverRadius: CGFloat
+            var popoverRadius: CGFloat?
             
-            let alignment: ArrowSide.ArrowAlignment
+            var alignment: ArrowSide.ArrowAlignment?
             switch arrowSide {
             case .top(let arrowAlignment):
                 alignment = arrowAlignment
@@ -297,36 +301,26 @@ public struct PopoverTemplates {
                 arrowTransform = .init(rotationAngle: 270.degreesToRadians)
                     .translatedBy(x: -rect.midY, y: 0)
                 popoverRadius = (rect.height / 2) - BackgroundWithArrow.arrowSidePadding
+            case .topAlignedToSourceFrameCenter:
+                let sourceFrame = context.attributes.sourceFrame()
+                let midPoint = sourceFrame.midX
+                let horizontalTranslation = midPoint - BackgroundWithArrow.arrowSidePadding / 2
+                arrowPath = arrowPath.applying(
+                    .init(translationX: horizontalTranslation, y: 0)
+                )
             }
             
-            switch alignment {
-            case .mostCounterClockwise:
-                arrowPath = arrowPath.applying(
-                    .init(translationX: -popoverRadius, y: 0)
-                )
-            case .centered:
-                break
-            case .mostClockwise:
-                arrowPath = arrowPath.applying(
-                    .init(translationX: popoverRadius, y: 0)
-                )
-            case .alignedToContainer:
-                let sourceFrame = context.attributes.sourceFrame()
-                let originalTranslationOffset = -(popoverRadius + BackgroundWithArrow.arrowSidePadding)
-                
-                switch arrowSide {
-                case .top(_), .bottom(_):
-                    let midPoint = sourceFrame.midX
-                    let horizontalOffset = originalTranslationOffset - BackgroundWithArrow.width / 4
+            if let alignment = alignment, let popoverRadius = popoverRadius {
+                switch alignment {
+                case .mostCounterClockwise:
                     arrowPath = arrowPath.applying(
-                        .init(translationX: horizontalOffset + midPoint, y: 0)
+                        .init(translationX: -popoverRadius, y: 0)
                     )
-                    
-                case .right(_), .left(_):
-                    let midPoint = sourceFrame.midY
-                    let verticalOffset = originalTranslationOffset - BackgroundWithArrow.height / 2
+                case .centered:
+                    break
+                case .mostClockwise:
                     arrowPath = arrowPath.applying(
-                        .init(translationX: 0, y: verticalOffset + midPoint)
+                        .init(translationX: popoverRadius, y: 0)
                     )
                 }
             }
